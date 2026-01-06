@@ -28,22 +28,22 @@ export default function MessageInput() {
   }
 
   return (
-    <div className="border-t border-gray-200 bg-white p-4">
-      <form onSubmit={handleSubmit} className="flex items-end space-x-2">
+    <div className="border-t border-gray-200 bg-white p-2 sm:p-4">
+      <form onSubmit={handleSubmit} className="flex items-end gap-2">
         <textarea
           value={message}
           onChange={(e) => setMessage(e.target.value)}
           onKeyPress={handleKeyPress}
           placeholder="Type a message..."
           rows={1}
-          className="flex-1 resize-none border border-gray-300 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-          style={{ minHeight: '48px', maxHeight: '120px' }}
+          className="flex-1 resize-none border border-gray-300 rounded-lg px-3 sm:px-4 py-2 sm:py-3 text-sm sm:text-base focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+          style={{ minHeight: '44px', maxHeight: '120px' }}
         />
 
         <button
           type="submit"
           disabled={!message.trim()}
-          className="bg-blue-600 hover:bg-blue-700 text-white font-medium py-3 px-6 rounded-lg transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
+          className="bg-blue-600 hover:bg-blue-700 text-white font-medium py-2.5 sm:py-3 px-4 sm:px-6 rounded-lg transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center flex-shrink-0"
         >
           <svg
             className="w-5 h-5"
@@ -61,7 +61,7 @@ export default function MessageInput() {
         </button>
       </form>
 
-      <p className="text-xs text-gray-500 mt-2">
+      <p className="text-[10px] sm:text-xs text-gray-500 mt-1.5 sm:mt-2 px-1 hidden sm:block">
         Press Enter to send, Shift+Enter for new line
       </p>
     </div>
