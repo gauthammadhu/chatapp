@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { persist } from 'zustand/middleware';
 import type { Thread, Message } from '../types';
 import { socketService } from '../services/socket';
 
@@ -17,36 +18,39 @@ interface ChatState {
   sendMessage: (threadId: string, content: string) => void;
   setUserTyping: (threadId: string, userId: string) => void;
   clearUserTyping: (threadId: string, userId: string) => void;
+  clearAllMessages: () => void;
 }
 
-export const useChatStore = create<ChatState>()((set, get) => ({
-  threads: [],
-  messages: {},
-  activeThreadId: null,
-  typingUsers: {},
+export const useChatStore = create<ChatState>()(
+  persist(
+    (set, get) => ({
+      threads: [],
+      messages: {},
+      activeThreadId: null,
+      typingUsers: {},
 
-  setThreads: (threads) => set({ threads }),
+      setThreads: (threads) => set({ threads }),
 
-  addThread: (thread) =>
-    set((state) => ({
-      threads: [thread, ...state.threads],
-    })),
+      addThread: (thread) =>
+        set((state) => ({
+          threads: [thread, ...state.threads],
+        })),
 
-  setActiveThread: (threadId) => {
-    const { activeThreadId } = get();
+      setActiveThread: (threadId) => {
+        const { activeThreadId } = get();
 
-    // Leave previous thread
-    if (activeThreadId) {
-      socketService.leaveThread(activeThreadId);
-    }
+        // Leave previous thread
+        if (activeThreadId && activeThreadId !== threadId) {
+          socketService.leaveThread(activeThreadId);
+        }
 
-    // Join new thread
-    if (threadId) {
-      socketService.joinThread(threadId);
-    }
+        // Join new thread only if socket is connected
+        if (threadId && socketService.isConnected()) {
+          socketService.joinThread(threadId);
+        }
 
-    set({ activeThreadId: threadId });
-  },
+        set({ activeThreadId: threadId });
+      },
 
   setMessages: (threadId, messages) =>
     set((state) => ({
@@ -57,18 +61,42 @@ export const useChatStore = create<ChatState>()((set, get) => ({
     })),
 
   addMessage: (message) =>
-    set((state) => ({
-      messages: {
+    set((state) => {
+      // Update messages
+      const updatedMessages = {
         ...state.messages,
         [message.threadId]: [
           ...(state.messages[message.threadId] || []),
           message,
         ],
-      },
-    })),
+      };
+
+      // Update thread list - move thread to top and set lastMessage
+      const updatedThreads = state.threads.map((thread) =>
+        thread.id === message.threadId
+          ? { ...thread, lastMessage: message, updatedAt: message.createdAt }
+          : thread
+      );
+
+      // Sort threads by updatedAt (most recent first)
+      updatedThreads.sort(
+        (a, b) =>
+          new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()
+      );
+
+      return {
+        messages: updatedMessages,
+        threads: updatedThreads,
+      };
+    }),
 
   sendMessage: (threadId, content) => {
+    // Send via socket
     socketService.sendMessage(threadId, content);
+
+    // Note: We don't add optimistic update here because
+    // the socket will broadcast the message back to all clients including sender
+    // This ensures consistency across all devices
   },
 
   setUserTyping: (threadId, userId) =>
@@ -96,4 +124,15 @@ export const useChatStore = create<ChatState>()((set, get) => ({
         },
       };
     }),
-}));
+
+      clearAllMessages: () => set({ messages: {}, activeThreadId: null }),
+    }),
+    {
+      name: 'chat-storage',
+      partialize: (state) => ({
+        activeThreadId: state.activeThreadId,
+        messages: state.messages,
+      }),
+    }
+  )
+);

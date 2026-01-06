@@ -12,7 +12,7 @@ import NewChatModal from '../components/NewChatModal';
 export default function ChatPage() {
   const navigate = useNavigate();
   const { isAuthenticated, user, logout } = useAuthStore();
-  const { activeThreadId, addMessage, setMessages, setThreads } = useChatStore();
+  const { activeThreadId, addMessage, setMessages, setThreads, clearAllMessages } = useChatStore();
   const [isNewChatModalOpen, setIsNewChatModalOpen] = useState(false);
 
   // Load threads on mount
@@ -34,7 +34,7 @@ export default function ChatPage() {
     loadThreads();
   }, [isAuthenticated, navigate, setThreads]);
 
-  // Set up socket listeners
+  // Set up socket listeners and rejoin active thread
   useEffect(() => {
     if (!isAuthenticated) {
       return;
@@ -48,13 +48,20 @@ export default function ChatPage() {
       addMessage(data.message);
     });
 
+    // Rejoin active thread if exists (after refresh)
+    if (activeThreadId && socketService.isConnected()) {
+      console.log('Rejoining thread:', activeThreadId);
+      socketService.joinThread(activeThreadId);
+    }
+
     return () => {
       socketService.offThreadHistory();
       socketService.offNewMessage();
     };
-  }, [isAuthenticated, addMessage, setMessages]);
+  }, [isAuthenticated, addMessage, setMessages, activeThreadId]);
 
   const handleLogout = () => {
+    clearAllMessages();
     logout();
     navigate('/');
   };
